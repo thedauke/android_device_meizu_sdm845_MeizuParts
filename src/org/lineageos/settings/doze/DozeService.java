@@ -38,7 +38,7 @@ public class DozeService extends Service {
     private static final boolean DEBUG = false;
 
     private static final long AOD_DELAY_MS = 500;
-
+    private static final long ExitAOD_DELAY_MS = 1000;
     private PickupSensor mPickupSensor;
     private ProximitySensor mProximitySensor;
 
@@ -48,7 +48,7 @@ public class DozeService extends Service {
     
     private boolean mInteractive = true;
     private boolean mCovered = false;
-    private boolean mInAOD = false;
+
 
     @Override
     public void onCreate() {
@@ -102,9 +102,11 @@ public class DozeService extends Service {
     }
 
     private void onDisplayOff() {
-        if (DEBUG) Log.d(TAG, "Display off");
 	    mInteractive = false;
-	    mInAOD = false;
+        if (DEBUG) Log.d(TAG, "Display off");
+            mHandler.postDelayed(() -> {
+            updateAOD();
+            }, AOD_DELAY_MS);
         if (DozeUtils.isPickUpEnabled(this)) {
             mPickupSensor.enable();
         }
@@ -113,11 +115,8 @@ public class DozeService extends Service {
             mProximitySensor.enable();
         }
 	if (DozeUtils.isAlwaysOnEnabled(this)) {
-            mHandler.postDelayed(() -> {
-            mProximityListener.enable();
-            updateAOD();
-            }, AOD_DELAY_MS);
-        }
+		mProximityListener.enable();
+		}
     }
 
     void onProximityNear() {
@@ -133,33 +132,47 @@ public class DozeService extends Service {
     }
 
     private void updateAOD() {
-        final boolean state = !mInteractive && !mCovered;
-        if (mInAOD != state) {
-            mInAOD = state;
-            if (state) {
+        final boolean state = mCovered;
+        final boolean mAOD = mInteractive;
+        if ( mAOD == false ) {
+            if (state == false) {
                 Log.d(TAG, "Enter AOD");
                 EnterAOD();
             } else {
                 Log.d(TAG, "Exit AOD");
-                ExitAOD();
-            }
-        }
-    }
+ 	        try {
+                FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "0");
+                  } catch (IOException e) {
+                    Log.e(TAG, "FileUtils:Failed to decrease brightness of doze_mode");
+                  }
+	        ExitAOD();
+         }
+         }
+       }
 
     private void EnterAOD() {
         try {
-            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_s2", "1");
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_s2", "0");
         } catch (IOException e) {
             Log.e(TAG, "FileUtils:Failed to Enter AOD");
         }
+            mHandler.postDelayed(() -> {
+        try {
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "1");
+        } catch (IOException e) {
+            Log.e(TAG, "FileUtils:Failed to switch doze_mode");
+        }  
+            }, ExitAOD_DELAY_MS);
     }
 
     private void ExitAOD() {
+        mHandler.postDelayed(() -> {
             try {
             FileUtils.stringToFile("/sys/class/meizu/lcm/display/aod", "0");
         } catch (IOException e) {
             Log.e(TAG, "FileUtils:Failed to Exit AOD");
         }
+       }, ExitAOD_DELAY_MS);
     }
 
     private void WakeupScreen() {
