@@ -39,9 +39,11 @@ public class DozeService extends Service {
 
     private static final long AOD_DELAY_MS = 500;
     private static final long ExitAOD_DELAY_MS = 1000;
+    private static final long Brightness_DELAY_MS = 4000;
+
     private PickupSensor mPickupSensor;
     private ProximitySensor mProximitySensor;
-
+    private LightListener mLightListener;
     private ProximityListener mProximityListener;
 
     private Handler mHandler = new Handler(Looper.getMainLooper());
@@ -57,7 +59,7 @@ public class DozeService extends Service {
         mPickupSensor = new PickupSensor(this);
         mProximitySensor = new ProximitySensor(this);
 	mProximityListener = new ProximityListener(this);
-
+        mLightListener = new LightListener(this);
 
         IntentFilter screenStateFilter = new IntentFilter();
         screenStateFilter.addAction(Intent.ACTION_SCREEN_ON);
@@ -79,6 +81,7 @@ public class DozeService extends Service {
         mProximitySensor.disable();
         mPickupSensor.disable();
         mProximityListener.disable();
+	mLightListener.disable();
     }
 
     @Override
@@ -91,6 +94,7 @@ public class DozeService extends Service {
             mInteractive = true;
 	    mHandler.removeCallbacksAndMessages(null);
             mProximityListener.disable();
+            mLightListener.disable();
             WakeupScreen();
         if (DozeUtils.isPickUpEnabled(this)) {
             mPickupSensor.disable();
@@ -116,6 +120,7 @@ public class DozeService extends Service {
         }
 	if (DozeUtils.isAlwaysOnEnabled(this)) {
 		mProximityListener.enable();
+                mLightListener.enable();
 		}
     }
 
@@ -129,6 +134,17 @@ public class DozeService extends Service {
         Log.d(TAG, "Device uncovered");
         mCovered = false;
         updateAOD();
+    }
+
+    void onChangedLuxState(float currentLux) {
+        Log.d(TAG, "Handle ambient lighting around the phone");
+        if (mInteractive == false) {
+            if (currentLux > 100) {
+                EnterHBMAOD();
+            } else {
+                ExitHBMAOD();
+            }
+        }
     }
 
     private void updateAOD() {
@@ -149,6 +165,26 @@ public class DozeService extends Service {
          }
          }
        }
+    
+    private void EnterHBMAOD() {
+        mHandler.postDelayed(() -> {
+            try {
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "1");
+        } catch (IOException e) {
+            Log.e(TAG, "FileUtils:Failed to EnterHBMAOD");
+        }
+       }, Brightness_DELAY_MS);
+    }
+
+    private void ExitHBMAOD() {
+        mHandler.postDelayed(() -> {
+            try {
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "0");
+        } catch (IOException e) {
+            Log.e(TAG, "FileUtils:Failed to ExitHBMAOD");
+        }
+       }, Brightness_DELAY_MS);
+    }
 
     private void EnterAOD() {
         try {
