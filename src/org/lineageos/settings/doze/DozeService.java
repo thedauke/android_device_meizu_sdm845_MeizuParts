@@ -40,6 +40,7 @@ public class DozeService extends Service {
     private static final long AOD_DELAY_MS = 500;
     private static final long ExitAOD_DELAY_MS = 1500;
     private static final long Brightness_DELAY_MS = 2300;
+    private static final long WakeUP_DELAY_MS = 180;
 
     private PickupSensor mPickupSensor;
     private ProximitySensor mProximitySensor;
@@ -155,6 +156,31 @@ public class DozeService extends Service {
          }
        }
 
+    private void EnterAOD() {
+        try {
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_s2", "0");
+        } catch (IOException e) {
+            Log.e(TAG, "FileUtils:Failed to Enter AOD");
+        }
+            mHandler.postDelayed(() -> {
+        try {
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "1");
+        } catch (IOException e) {
+            Log.e(TAG, "FileUtils:Failed to switch doze_mode");
+        }  
+            }, ExitAOD_DELAY_MS);
+    }
+
+    private void ExitAOD() {
+        mHandler.postDelayed(() -> {
+            try {
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/aod", "0");
+        } catch (IOException e) {
+            Log.e(TAG, "FileUtils:Failed to Exit AOD");
+        }
+       }, ExitAOD_DELAY_MS);
+    }
+
     void onChangedLuxState(float currentLux) {
         Log.d(TAG, "Handle ambient lighting around the phone");
         if (mInteractive == false) {
@@ -186,39 +212,18 @@ public class DozeService extends Service {
        }, Brightness_DELAY_MS);
     }
 
-    private void EnterAOD() {
-        try {
-            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_s2", "0");
-        } catch (IOException e) {
-            Log.e(TAG, "FileUtils:Failed to Enter AOD");
-        }
-            mHandler.postDelayed(() -> {
-        try {
-            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "1");
-        } catch (IOException e) {
-            Log.e(TAG, "FileUtils:Failed to switch doze_mode");
-        }  
-            }, ExitAOD_DELAY_MS);
-    }
-
-    private void ExitAOD() {
-        mHandler.postDelayed(() -> {
-            try {
-            FileUtils.stringToFile("/sys/class/meizu/lcm/display/aod", "0");
-        } catch (IOException e) {
-            Log.e(TAG, "FileUtils:Failed to Exit AOD");
-        }
-       }, ExitAOD_DELAY_MS);
-    }
-
     private void WakeupScreen() {
-    PowerManager.WakeLock screenLock = null;
-    if ((getSystemService(POWER_SERVICE)) != null) {
-        screenLock = ((PowerManager)getSystemService(POWER_SERVICE)).newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "TAG");
-        screenLock.release();
+    mHandler.postDelayed(() -> {
+    PowerManager powerManager = (PowerManager) getApplicationContext()
+            .getSystemService(Context.POWER_SERVICE);
+    PowerManager.WakeLock wakeLock = powerManager.newWakeLock(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                    PowerManager.ACQUIRE_CAUSES_WAKEUP, getPackageName() + ":Call");
+    wakeLock.acquire();
+    }, WakeUP_DELAY_MS);
     }
-}
+
+
 
     private BroadcastReceiver mScreenStateReceiver = new BroadcastReceiver() {
         @Override

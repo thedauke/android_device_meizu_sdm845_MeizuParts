@@ -43,13 +43,18 @@
             </intent-filter>
         </receiver>
         <service android:name=".doze.DozeService"
-                 android:permission="XiaomiDozeService">
+                 android:permission="<MeizuDozeService">
         </service>
 
         <activity
             android:name=".doze.DozeSettingsActivity"
             android:label="@string/ambient_display_title"
             android:theme="@style/Theme.Main">
+    	    android:name=".call.CallActivity"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:showOnLockScreen="true"
+            android:showForAllUsers="true"
             <intent-filter>
                 <action android:name="org.lineageos.settings.device.DOZE_SETTINGS" />
                 <category android:name="android.intent.category.DEFAULT" />
