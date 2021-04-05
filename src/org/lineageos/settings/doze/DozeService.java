@@ -38,8 +38,8 @@ public class DozeService extends Service {
     private static final boolean DEBUG = false;
 
     private static final long AOD_DELAY_MS = 500;
-    private static final long ExitAOD_DELAY_MS = 1000;
-    private static final long Brightness_DELAY_MS = 4000;
+    private static final long ExitAOD_DELAY_MS = 1500;
+    private static final long Brightness_DELAY_MS = 2300;
 
     private PickupSensor mPickupSensor;
     private ProximitySensor mProximitySensor;
@@ -136,17 +136,6 @@ public class DozeService extends Service {
         updateAOD();
     }
 
-    void onChangedLuxState(float currentLux) {
-        Log.d(TAG, "Handle ambient lighting around the phone");
-        if (mInteractive == false) {
-            if (currentLux > 100) {
-                EnterHBMAOD();
-            } else {
-                ExitHBMAOD();
-            }
-        }
-    }
-
     private void updateAOD() {
         final boolean state = mCovered;
         final boolean mAOD = mInteractive;
@@ -165,6 +154,17 @@ public class DozeService extends Service {
          }
          }
        }
+
+    void onChangedLuxState(float currentLux) {
+        Log.d(TAG, "Handle ambient lighting around the phone");
+        if (mInteractive == false) {
+            if (currentLux > 100) {
+                EnterHBMAOD();
+            } else {
+                ExitHBMAOD();
+            }
+        }
+    }
     
     private void EnterHBMAOD() {
         mHandler.postDelayed(() -> {
