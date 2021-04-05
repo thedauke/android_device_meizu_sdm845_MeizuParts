@@ -43,7 +43,7 @@
             </intent-filter>
         </receiver>
         <service android:name=".doze.DozeService"
-                 android:permission="<MeizuDozeService">
+                 android:permission="MeizuDozeService">
         </service>
 
         <activity
