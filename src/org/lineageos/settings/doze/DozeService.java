@@ -41,6 +41,7 @@ public class DozeService extends Service {
     private static final long ExitAOD_DELAY_MS = 1500;
     private static final long Brightness_DELAY_MS = 2300;
     private static final long WakeUP_DELAY_MS = 180;
+    private static final long PULSE_RESTORE_DELAY_MS = 11000; // maximum pulse notification time 11s
 
     private PickupSensor mPickupSensor;
     private ProximitySensor mProximitySensor;
@@ -61,11 +62,13 @@ public class DozeService extends Service {
         mProximitySensor = new ProximitySensor(this);
 	mProximityListener = new ProximityListener(this);
         mLightListener = new LightListener(this);
+        mScreenStateFilter.addAction(com.android.systemui.doze.pulse);
 
         IntentFilter screenStateFilter = new IntentFilter();
         screenStateFilter.addAction(Intent.ACTION_SCREEN_ON);
         screenStateFilter.addAction(Intent.ACTION_SCREEN_OFF);
         registerReceiver(mScreenStateReceiver, screenStateFilter);
+
     }
 
     @Override
@@ -122,8 +125,20 @@ public class DozeService extends Service {
 	if (DozeUtils.isAlwaysOnEnabled(this)) {
 		mProximityListener.enable();
                 mLightListener.enable();
-		}
+                while (com.android.systemui.doze.pulse.equals(action)) {
+                mService.onDozePulse();
+        	}
+	}
     }
+
+    void onDozePulse() {
+      Log.d(TAG, "Doze pulse state detected");
+      mHandler.postDelayed(() -> {
+          if (!mInteractive) {
+              Log.d(TAG, "Doze pulse triggered AOD");
+              EnterAOD();
+          }
+      }, PULSE_RESTORE_DELAY_MS);
 
     void onProximityNear() {
         Log.d(TAG, "Device covered");
