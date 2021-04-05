@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.io.IOException;
 import android.os.PowerManager;
+import android.view.WindowManager;
 
 public class DozeService extends Service {
     private static final String TAG = "DozeService";
@@ -42,11 +43,13 @@ public class DozeService extends Service {
     private static final long Brightness_DELAY_MS = 2300;
     private static final long WakeUP_DELAY_MS = 180;
     private static final long PULSE_RESTORE_DELAY_MS = 11000; // maximum pulse notification time 11s
+    private static final String PULSE_ACTION = "com.android.systemui.doze.pulse";
 
     private PickupSensor mPickupSensor;
     private ProximitySensor mProximitySensor;
     private LightListener mLightListener;
     private ProximityListener mProximityListener;
+    private IntentFilter mScreenStateFilter = new IntentFilter(PULSE_ACTION);
 
     private Handler mHandler = new Handler(Looper.getMainLooper());
     
@@ -62,7 +65,6 @@ public class DozeService extends Service {
         mProximitySensor = new ProximitySensor(this);
 	mProximityListener = new ProximityListener(this);
         mLightListener = new LightListener(this);
-        mScreenStateFilter.addAction(com.android.systemui.doze.pulse);
 
         IntentFilter screenStateFilter = new IntentFilter();
         screenStateFilter.addAction(Intent.ACTION_SCREEN_ON);
@@ -92,7 +94,7 @@ public class DozeService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
-
+   
     private void onDisplayOn() {
         if (DEBUG) Log.d(TAG, "Display on");
             mInteractive = true;
@@ -125,9 +127,6 @@ public class DozeService extends Service {
 	if (DozeUtils.isAlwaysOnEnabled(this)) {
 		mProximityListener.enable();
                 mLightListener.enable();
-                while (com.android.systemui.doze.pulse.equals(action)) {
-                mService.onDozePulse();
-        	}
 	}
     }
 
@@ -139,6 +138,7 @@ public class DozeService extends Service {
               EnterAOD();
           }
       }, PULSE_RESTORE_DELAY_MS);
+    }
 
     void onProximityNear() {
         Log.d(TAG, "Device covered");
@@ -243,10 +243,14 @@ public class DozeService extends Service {
     private BroadcastReceiver mScreenStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
             if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
                 onDisplayOn();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
                 onDisplayOff();
+              while (PULSE_ACTION.equals(action)) {
+                onDozePulse();
+             }
             }
         }
     };
