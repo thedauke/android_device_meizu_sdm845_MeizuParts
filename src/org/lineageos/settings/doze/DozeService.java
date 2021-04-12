@@ -28,9 +28,12 @@ import android.util.Log;
 import android.os.Handler;
 import android.os.FileUtils;
 import android.os.Looper;
+import android.provider.Settings;
+import android.provider.Settings.SettingNotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.io.IOException;
+
 
 public class DozeService extends Service {
     private static final String TAG = "DozeService";
@@ -93,6 +96,16 @@ public class DozeService extends Service {
         return null;
     }
    
+    int getBrightnessMode(int defaultValue) {
+        int brightnessMode = defaultValue;
+        try {
+            brightnessMode = Settings.System.getInt(getContentResolver(),
+                    Settings.System.SCREEN_BRIGHTNESS_MODE);
+        } catch (SettingNotFoundException snfe) {
+        }
+        return brightnessMode;
+    }
+
     private void onDisplayOn() {
         if (DEBUG) Log.d(TAG, "Display on");
             mInteractive = true;
@@ -123,9 +136,13 @@ public class DozeService extends Service {
         }
 	if (DozeUtils.isAlwaysOnEnabled(this)) {
 		mProximityListener.enable();
-                mLightListener.enable();
+	    if (getBrightnessMode(0) == 1) {
+                    mLightListener.enable();
+            }
 	}
     }
+
+                 
 
     void onDozePulse() {
       Log.d(TAG, "Doze pulse state detected");
@@ -181,6 +198,13 @@ public class DozeService extends Service {
             Log.e(TAG, "FileUtils:Failed to switch doze_mode");
         }  
             }, ExitAOD_DELAY_MS);
+            mHandler.postDelayed(() -> {
+        try {
+            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "0");
+        } catch (IOException e) {
+            Log.e(TAG, "FileUtils:Failed to switch doze_mode");
+        }  
+            }, 1600);
     }
 
     private void ExitAOD() {
