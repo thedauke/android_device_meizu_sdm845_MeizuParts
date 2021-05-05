@@ -33,7 +33,8 @@ import android.provider.Settings.SettingNotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.io.IOException;
-
+import android.os.PowerManager;
+import android.view.WindowManager;
 
 public class DozeService extends Service {
     private static final String TAG = "DozeService";
@@ -42,7 +43,7 @@ public class DozeService extends Service {
     private static final long AOD_DELAY_MS = 500;
     private static final long ExitAOD_DELAY_MS = 1500;
     private static final long Brightness_DELAY_MS = 2300;
-    private static final long WakeUP_DELAY_MS = 180;
+    private static final long WakeUP_DELAY_MS = 80; // WakeUp delay after exit from AOD
     private static final long PULSE_RESTORE_DELAY_MS = 600; // maximum pulse notification time 0.6s
     private static final String PULSE_ACTION = "com.android.systemui.doze.pulse";
 
@@ -108,10 +109,11 @@ public class DozeService extends Service {
 
     private void onDisplayOn() {
         if (DEBUG) Log.d(TAG, "Display on");
-            mInteractive = true;
+        mInteractive = true;
 	    mHandler.removeCallbacksAndMessages(null);
-            mProximityListener.disable();
-            mLightListener.disable();
+        mProximityListener.disable();
+        mLightListener.disable();
+        WakeupScreen();
         if (DozeUtils.isPickUpEnabled(this)) {
             mPickupSensor.disable();
         }
@@ -217,6 +219,17 @@ public class DozeService extends Service {
        }, ExitAOD_DELAY_MS);
     }
 
+    private void WakeupScreen() {
+        mHandler.postDelayed(() -> {
+            PowerManager powerManager = (PowerManager) getApplicationContext()
+            .getSystemService(Context.POWER_SERVICE);
+            PowerManager.WakeLock wakeLock = powerManager.newWakeLock(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+            PowerManager.ACQUIRE_CAUSES_WAKEUP, getPackageName() + ":Call");
+            wakeLock.acquire();
+    }, WakeUP_DELAY_MS);
+    }
+
     void onChangedLuxState(float currentLux) {
         Log.d(TAG, "Handle ambient lighting around the phone");
         if (mInteractive == false) {
@@ -256,7 +269,7 @@ public class DozeService extends Service {
                 onDisplayOn();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
                 onDisplayOff();
-              if (PULSE_ACTION.equals(action)) {
+              while (PULSE_ACTION.equals(action)) {
                 onDozePulse();
              }
             }
