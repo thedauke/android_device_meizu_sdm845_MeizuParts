@@ -46,16 +46,18 @@ class ProximityListener implements SensorEventListener {
     }
 
     void enable() {
+        private static final int Covered_DELAY_MS =3500000; // Delay for update covered state time in us
         if (mIsListening) return;
         if (DEBUG) Log.d(TAG, "Enabling");
-        mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mSensor, Covered_DELAY_MS);
         mIsListening = true;
     }
 
     void disable() {
+        private static final int Uncovered_DELAY_MS=1100000; // Delay for update covered state time in us
         if (!mIsListening) return;
         if (DEBUG) Log.d(TAG, "Disabling");
-        mSensorManager.unregisterListener(this, mSensor);
+        mSensorManager.unregisterListener(this, mSensor, Uncovered_DELAY_MS);
         mIsListening = false;
     }
 

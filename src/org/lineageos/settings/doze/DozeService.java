@@ -38,12 +38,11 @@ public class DozeService extends Service {
     private static final String TAG = "DozeService";
     private static final boolean DEBUG = false;
 
-    private static final long AOD_DELAY_MS = 500; // Delay for enable AOD mode
-    private static final long ExitAOD_DELAY_MS = 1100; // Delay for exit from AOD
-    private static final long Brightness_DELAY_MS = 2300; // Delay for reaction to brightness changes  
-    private static final long WakeUP_DELAY_MS = 80; // WakeUp delay after exit from AOD
-    private static final long PULSE_RESTORE_DELAY_MS = 600; // maximum pulse notification time 0.6s
-
+    private static final long AOD_DELAY_MS = 150; // Delay for enable AOD mode
+    private static final long ExitAOD_DELAY_MS = 150; // Delay for exit from AOD
+    private static final long HBMBrightness_DELAY_MS = 150; // Delay for reaction to brightness changes  
+    private static final long WakeUP_DELAY_MS = 300; // WakeUp delay after exit from AOD
+    private static final long PULSE_RESTORE_DELAY_MS = 2000; // maximum pulse notification time 0.6s
     private static final String PULSE_ACTION = "com.android.systemui.doze.pulse";
 
     private PickupSensor mPickupSensor;
@@ -125,12 +124,9 @@ public class DozeService extends Service {
     }
 
     void onDozePulse() {
-      Log.d(TAG, "Doze pulse state detected");
+      Log.d(TAG, "Doze pulse state detected & Doze pulse triggered AOD");
       mHandler.postDelayed(() -> {
-          if (!mInteractive) {
-              Log.d(TAG, "Doze pulse triggered AOD");
               EnterAOD();
-          }
       }, PULSE_RESTORE_DELAY_MS);
     }
 
@@ -161,25 +157,26 @@ public class DozeService extends Service {
     }
 
     private void EnterAOD() {
-        try {
-            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_s2", "0");
-            } catch (IOException e) {
+        mHandler.postDelayed(() -> {
+            try {
+              FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_s2", "0");
+              } catch (IOException e) {
               Log.e(TAG, "FileUtils:Failed to Enter AOD");
             }
-            mHandler.postDelayed(() -> {
-        try {
-            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "1");
-        } catch (IOException e) {
-            Log.e(TAG, "FileUtils:Failed to switch doze_mode");
-        }  
-            }, ExitAOD_DELAY_MS);
-            mHandler.postDelayed(() -> {
-        try {
-            FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "0");
-        } catch (IOException e) {
-            Log.e(TAG, "FileUtils:Failed to switch doze_mode");
-        }  
-            }, 16);
+        }, 16);
+        /*try {
+        *    FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "1");
+        *} catch (IOException e) {
+        *    Log.e(TAG, "FileUtils:Failed to switch doze_mode");
+        *}  
+        *    }, 600);
+        *    mHandler.postDelayed(() -> {
+        *try {
+        *    FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "0");
+        *} catch (IOException e) {
+        *    Log.e(TAG, "FileUtils:Failed to switch doze_mode");
+        *}
+        */      
     }
 
     private void ExitAOD() {
@@ -210,7 +207,7 @@ public class DozeService extends Service {
             } catch (IOException e) {
             Log.e(TAG, "FileUtils:Failed to EnterHBMAOD");
         }
-       }, Brightness_DELAY_MS);
+       }, HBMBrightness_DELAY_MS);
     }
 
     private void ExitHBM() {
@@ -220,7 +217,7 @@ public class DozeService extends Service {
             } catch (IOException e) {
             Log.e(TAG, "FileUtils:Failed to ExitHBMAOD");
         }
-       }, Brightness_DELAY_MS);
+       }, HBMBrightness_DELAY_MS);
     }
 
     private BroadcastReceiver mScreenStateReceiver = new BroadcastReceiver() {
