@@ -33,8 +33,11 @@ import java.io.File;
 import java.io.IOException;
 import android.os.PowerManager;
 import android.view.WindowManager;
+import android.service.notification.NotificationListenerService;
+import android.service.notification.StatusBarNotification;
 
 public class DozeService extends Service {
+
     private static final String TAG = "DozeService";
     private static final boolean DEBUG = false;
 
@@ -42,13 +45,13 @@ public class DozeService extends Service {
     private static final long ExitAOD_DELAY_MS = 150; // Delay for exit from AOD
     private static final long HBMBrightness_DELAY_MS = 150; // Delay for reaction to brightness changes  
     private static final long WakeUP_DELAY_MS = 300; // WakeUp delay after exit from AOD
-    private static final long PULSE_RESTORE_DELAY_MS = 2000; // maximum pulse notification time 0.6s
-    private static final String PULSE_ACTION = "com.android.systemui.doze.pulse";
+    private static final long Notif_RESTORE_DELAY_MS = 5500; // Delay after get notifications
+    private static final long UpdateAOD_DELAY_MS = 2000; // Delay for update AODstate
+
 
     private PickupSensor mPickupSensor;
     private ProximitySensor mProximitySensor;
     private ProximityListener mProximityListener;
-    private IntentFilter mScreenStateFilter = new IntentFilter(PULSE_ACTION);
 
     private Handler mHandler = new Handler(Looper.getMainLooper());
     
@@ -96,12 +99,13 @@ public class DozeService extends Service {
         mInteractive = true;
 	    mHandler.removeCallbacksAndMessages(null);
         mProximityListener.disable();
-        WakeupScreen();
+        if (DozeUtils.isAlwaysOnEnabled(this)) {
+		    WakeupScreen();
+	    }
         if (DozeUtils.isPickUpEnabled(this)) {
             mPickupSensor.disable();
         }
-        if (DozeUtils.isHandwaveGestureEnabled(this) ||
-             DozeUtils.isPocketGestureEnabled(this)) {
+        if (DozeUtils.isHandwaveGestureEnabled(this) || DozeUtils.isPocketGestureEnabled(this)) {
              mProximitySensor.disable();
         }
     }
@@ -123,37 +127,42 @@ public class DozeService extends Service {
 	    }
     }
 
-    void onDozePulse() {
-      Log.d(TAG, "Doze pulse state detected & Doze pulse triggered AOD");
-      mHandler.postDelayed(() -> {
-              EnterAOD();
-      }, PULSE_RESTORE_DELAY_MS);
+    public void onNotificationPosted (StatusBarNotification sbn) {
+        Log.d(TAG, "Doze pulse state detected & Doze pulse triggered AOD");
+        if (DozeUtils.isAlwaysOnEnabled(this)){
+            mHandler.postDelayed(() -> {
+                EnterAOD();
+            }, Notif_RESTORE_DELAY_MS);
+        }
     }
-
     void onProximityNear() {
-        Log.d(TAG, "Device covered");
-        mCovered = true;
-        updateAOD();
+        if (DozeUtils.isAlwaysOnEnabled(this)) {
+            Log.d(TAG, "Device covered");
+            mCovered = true;
+            updateAOD();
+        }  
     }
 
     void onProximityFar() {
-        Log.d(TAG, "Device uncovered");
-        mCovered = false;
-        updateAOD();
+        if(DozeUtils.isAlwaysOnEnabled(this)){
+            Log.d(TAG, "Device uncovered");
+            mCovered = false;
+            updateAOD();
+        }
     }
 
     private void updateAOD() {
-        final boolean state = mCovered;
-        final boolean mAOD = mInteractive;
-        if ( mAOD == false ) {
-            if (state == false) {
-                Log.d(TAG, "Enter AOD");
-                EnterAOD();
-            } else {
-                Log.d(TAG, "Exit AOD");
-	        ExitAOD();
+        mHandler.postDelayed(() -> {
+            if ( !mInteractive || DozeUtils.isAlwaysOnEnabled(this)) {
+                if (!mCovered) {
+                    Log.d(TAG, "Enter AOD");
+                    EnterAOD();
+                } else {
+                    Log.d(TAG, "Exit AOD");
+	                ExitAOD();
+                }
             }
-        }
+        }, UpdateAOD_DELAY_MS);
     }
 
     private void EnterAOD() {
@@ -163,7 +172,7 @@ public class DozeService extends Service {
               } catch (IOException e) {
               Log.e(TAG, "FileUtils:Failed to Enter AOD");
             }
-        }, 16);
+        }, AOD_DELAY_MS);
         /*try {
         *    FileUtils.stringToFile("/sys/class/meizu/lcm/display/doze_mode", "1");
         *} catch (IOException e) {
@@ -229,9 +238,6 @@ public class DozeService extends Service {
             } 
             else if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
                 onDisplayOff();
-              while (PULSE_ACTION.equals(action)) {
-                onDozePulse();
-              }
             }
         }
     };

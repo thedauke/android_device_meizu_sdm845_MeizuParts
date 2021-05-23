@@ -18,7 +18,7 @@ class ProximityListener implements SensorEventListener {
 
     private static final String TAG = "ProximityListener";
     private static final boolean DEBUG = false;
-
+    private static final int Covered_DELAY_MS =35000000; // Delay for update covered state time in us
     private final DozeService mService;
 
     private final SensorManager mSensorManager;
@@ -46,7 +46,6 @@ class ProximityListener implements SensorEventListener {
     }
 
     void enable() {
-        private static final int Covered_DELAY_MS =3500000; // Delay for update covered state time in us
         if (mIsListening) return;
         if (DEBUG) Log.d(TAG, "Enabling");
         mSensorManager.registerListener(this, mSensor, Covered_DELAY_MS);
@@ -54,10 +53,9 @@ class ProximityListener implements SensorEventListener {
     }
 
     void disable() {
-        private static final int Uncovered_DELAY_MS=1100000; // Delay for update covered state time in us
         if (!mIsListening) return;
         if (DEBUG) Log.d(TAG, "Disabling");
-        mSensorManager.unregisterListener(this, mSensor, Uncovered_DELAY_MS);
+        mSensorManager.unregisterListener(this, mSensor);
         mIsListening = false;
     }
 
